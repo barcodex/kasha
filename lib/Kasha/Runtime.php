@@ -4,26 +4,18 @@ namespace Kasha;
 
 use Temple\Util;
 use Kasha\Templar\TextProcessor;
+use Kasha\Core\Config;
+use Kasha\Core\Runtime as BaseRuntime;
+use Kasha\Profiler\Profiler;
 
-class Runtime extends Kasha\Core\Runtime
+class Runtime extends BaseRuntime
 {
-	private $warnings = array();
+	private $allCurrencies = array();
+	private $allSiteCurrencies = array();
 
-	/**
-	 * Registers warning
-	 *
-	 * @param string $warning
-	 */
-	public function addWarning($warning)
-	{
-		$debugInfo = debug_backtrace();
-		if (count($debugInfo) > 0) {
-			$caller = $debugInfo[0]['class'] . ':' . $debugInfo[0]['function'];
-			$codeLine = $debugInfo[0]['file'] . ':' . $debugInfo[0]['line'];
-			$warning = 'Error in ' . $caller . ' at ' . $codeLine . ' with warning:' . $warning;
-		}
-		$this->warnings[] = $warning;
-	}
+	private $allLanguages = array();
+	private $allSiteLanguages = array();
+	private $translatableLanguages = array();
 
 	/**
 	 * Renders ajax flash message (informational or error) and cleans up session
@@ -68,6 +60,168 @@ class Runtime extends Kasha\Core\Runtime
 		return $output;
 	}
 
+	public function getPageRenderer()
+	{
+		return new PageRenderer();
+	}
+
+	protected function routeFormAction($f, $fileName) {
+		$this->addProfilerMessage("Started to include action $f");
+		parent::routeFormAction($f, $fileName);
+		$this->addProfilerMessage("Finished to include action $f");
+	}
+
+	protected function routeInlineAction($i, $fileName) {
+		$this->addProfilerMessage("Started to include action $i");
+		parent::routeInlineAction($i, $fileName);
+		$this->addProfilerMessage("Finished to include action $i");
+	}
+
+	protected function routeJsonAction($json) {
+		$this->addProfilerMessage("Started to include action $json");
+		parent::routeJsonAction($json);
+		$this->addProfilerMessage("Finished to include action $json");
+	}
+
+	protected function routePdfAction($pdf, $fileName) {
+		$this->addProfilerMessage("Started to include action $pdf");
+		parent::routePdfAction($pdf, $fileName);
+		$this->addProfilerMessage("Finished to include action $pdf");
+	}
+
+	protected function routePageAction($p, $fileName) {
+		$this->addProfilerMessage("Started to include action $p");
+		parent::routePageAction($p, $fileName);
+		$this->addProfilerMessage("Finished to include action $p");
+	}
+
+	protected function routeCronAction($cron, $fileName) {
+		$this->prologueAction('cron', $cron); // this will also set special executionContext
+		$this->addProfilerMessage("Started to include action $cron");
+		if ($fileName = $this->checkAction($cron)) {
+			require $fileName;
+		}
+		$this->addProfilerMessage("Finished to include action $cron");
+		$this->sendWarnings('none');
+	}
+
+	public function addProfilerMessage($text, $activityStarted = null)
+	{
+		Profiler::getInstance()->addMessage($text, $activityStarted);
+	}
+
+/*
+	//region currency and language functions for the framework
+	public function isMultilingual()
+	{
+		return count($this->getAllSiteLanguages()) > 1;
+	}
+
+	public function getAllCurrencies()
+	{
+		if (count($this->allCurrencies) == 0) {
+			$this->allCurrencies = Model::getInstance('currency')->getList();
+		}
+
+		return $this->allCurrencies;
+	}
+
+	public function getAllSiteCurrencies()
+	{
+		if (count($this->allSiteCurrencies) == 0) {
+			$this->allSiteCurrencies = Model::getInstance('currency')->getList(array('is_enabled' => 1));
+		}
+
+		return $this->allSiteCurrencies;
+	}
+
+	public function getAllLanguages()
+	{
+		if (count($this->allLanguages) == 0) {
+			$this->allLanguages = Model::getInstance('human_language')->getList();
+		}
+
+		return $this->allLanguages;
+	}
+
+	public function getAllSiteLanguages()
+	{
+		if (count($this->allSiteLanguages) == 0) {
+			$this->allSiteLanguages = Model::getInstance('human_language')->getList(array('is_enabled' => 1));
+		}
+
+		return $this->allSiteLanguages;
+	}
+
+	public function getTranslatableLanguages()
+	{
+		if (count($this->translatableLanguages) == 0) {
+			$query = file_get_contents(__DIR__ . "/sql/ListTranslatableLanguages.sql");
+			$this->translatableLanguages = Database::getInstance()->getArray($query);
+		}
+
+		return $this->translatableLanguages;
+	}
+
+	// $scope - 'all', 'translatable' or 'site'
+	public function getLanguages($scope)
+	{
+		switch($scope) {
+			case 'all':
+				return $this->getAllLanguages();
+				break;
+			case 'translatable':
+				return $this->getTranslatableLanguages();
+				break;
+			case 'site':
+			default:
+				return $this->getAllSiteLanguages();
+				break;
+		}
+	}
+
+	public function getCurrencies($scope)
+	{
+		switch($scope) {
+			case 'all':
+				return $this->getAllCurrencies();
+				break;
+			case 'site':
+			default:
+				return $this->getAllSiteCurrencies();
+				break;
+		}
+	}
+
+	public function getLanguagesMap($excludeCodes = array())
+	{
+		$languagesMap = array();
+		foreach($this->getAllSiteLanguages() as $languageInfo) {
+			if (!in_array($languageInfo['code'], $excludeCodes)) {
+				$languagesMap[$languageInfo['code']] = $languageInfo;
+			}
+		}
+
+		return $languagesMap;
+	}
+
+	public function getCurrenciesMap($excludeCodes = array())
+	{
+		$currenciesMap = array();
+		foreach($this->getAllSiteCurrencies() as $currencyInfo) {
+			if (!in_array($currencyInfo['code'], $excludeCodes)) {
+				$currenciesMap[$currencyInfo['code']] = $currencyInfo;
+			}
+		}
+
+		return $currenciesMap;
+	}
+
+
+	//endregion
+*/
+
+/*
 	//region Shortcuts for database methods
 	public static function s2r(
 		$moduleName,
@@ -116,8 +270,8 @@ class Runtime extends Kasha\Core\Runtime
 	) {
 		Database::getInstance()->update($moduleName, $templateName, $params);
 	}
-
 //endregion
+*/
 
 //region Shortcuts for text processing
 	public function dot(
@@ -135,48 +289,6 @@ class Runtime extends Kasha\Core\Runtime
 	) {
 		return TextProcessor::loopTemplate($moduleName, $templateName, $rows);
 	}
-
 //endregion
-
-	/**
-	 * Send accumulated warnings to site administrator by email (if allowed in the config)
-	 */
-	private function sendWarnings($channel = '')
-	{
-		if ($this->muted) {
-			$channel = 'none';
-		} else {
-			$env = $this->config['ENV'];
-			if ($channel == '') {
-				$channel = $this->config['envConfig'][$env]['sendWarnings'];
-			}
-		}
-		if (count($this->warnings) > 0) {
-			switch ($channel) {
-				case 'dump':
-					d($this->warnings);
-					break;
-				case 'hidden':
-					dh($this->warnings);
-					break;
-				case 'email':
-					// TODO prepare pretty mail message for warnings
-					Runtime::mail(
-						$this->config['adminEmail'],
-						'warnings',
-						' warnings: ' . print_r($this->warnings, 1) .
-							' server: ' . print_r($_SERVER, 1) .
-							' request: ' . print_r($_REQUEST, 1)
-					);
-					break;
-				case 'none':
-					// fall through to default
-				default:
-					// do nothing
-					break;
-			}
-		}
-	}
-
 
 }
