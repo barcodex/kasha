@@ -17,6 +17,8 @@
         "php": ">=5.3.2",
         "barcodex/templar": "*",
 		"barcodex/kasha-core": "*",
+		"barcodex/kasha-caching": "*",
+		"barcodex/kasha-model": "*",
 		"barcodex/kasha-profiler": "*",
 		"barcodex/kasha-mail": "*",
 		"symfony/http-foundation": "*",
